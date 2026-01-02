@@ -1,1 +1,2 @@
 # ur12e-robotiq-2f-85-easydesk-scene-camerax2-on-ROS2-humbe-Moveit2
+On Ubuntu 24.04, run a Docker of ROS2 Humble, Developing the control and simulation software stack for a robot ur12e with gripper Robotiq 2f-85 on an easydesk workbench, with 2 scene cameras Intel D435.  Software stack includes Moveit2 for motion planning, URSim+URCap for ur12e hardware simulation, Gazebo or issac Sim for physics simulation, ros2 driver and controller for ur12e and 2f-85, RViz for visualization.
