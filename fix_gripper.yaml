@@ -1,0 +1,13 @@
+controller_manager:
+  ros__parameters:
+    robotiq_gripper_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - robotiq_85_left_knuckle_joint
+      command_interfaces:
+        - position
+      state_interfaces:
+        - position
+      state_publish_rate: 50.0
+      action_monitor_rate: 20.0
+      allow_partial_joints_goal: true

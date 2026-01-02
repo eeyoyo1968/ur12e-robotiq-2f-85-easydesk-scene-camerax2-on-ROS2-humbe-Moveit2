@@ -1,0 +1,82 @@
+import os
+from launch import LaunchDescription
+from launch_ros.actions import Node
+from launch.actions import ExecuteProcess
+import yaml
+import xacro
+from launch_ros.parameter_descriptions import ParameterValue
+
+def generate_launch_description():
+    # 1. Load the Robot Descriptions
+    # with open('/tmp/ur12e.urdf', 'r') as f:
+    #    robot_description = f.read()
+
+    # with open('/tmp/ur12e.srdf', 'r') as f:
+    #    robot_description_semantic = f.read()
+
+    # Inside generate_launch_description():
+    # xacro_file = os.path.join('/ros2_ws/src/my_ur_description/urdf/ur_system.xacro')
+    robot_description_config = xacro.process_file(xacro_file)
+    # robot_description = {'robot_description': robot_description_config.toxml()}
+
+    # Load the xacro file
+    xacro_file = "/ros2_ws/src/my_ur_description/urdf/ur_system.xacro"
+    robot_description_xml = xacro.process_file(xacro_file).toxml()
+
+# Update your Node parameters
+# -p robot_description:='{robot_description_xml}'
+
+    # For the SRDF, you can still use your /tmp/ur12e.srdf for now, 
+    # but eventually we will move it to the package.
+    with open('/tmp/ur12e.srdf', 'r') as f:
+        robot_description_semantic = {'robot_description_semantic': f.read()}
+
+    # 2. Load YAML Configs
+    def load_yaml(package_name, file_path):
+        # Using hardcoded paths based on your previous successful commands
+        full_path = os.path.join('/ros2_ws/install/ur_moveit_config/share/ur_moveit_config', file_path)
+        try:
+            with open(full_path, 'r') as file:
+                return yaml.safe_error(file) # Note: some distros use yaml.safe_load
+        except Exception: 
+            return None
+
+    kinematics_yaml = {'robot_description_kinematics': {'ur_manipulator': {'kinematics_solver': 'kdl_kinematics_plugin/KDLKinematicsPlugin'}}}
+    
+    # 3. Define the MoveGroup Node
+    move_group_node = Node(
+        package='moveit_ros_move_group',
+        executable='move_group',
+        output='screen',
+        parameters=[
+            {'robot_description': robot_description},
+            {'robot_description_semantic': robot_description_semantic},
+            '/ros2_ws/install/ur_moveit_config/share/ur_moveit_config/config/moveit_controllers.yaml',
+            '/ros2_ws/install/ur_moveit_config/share/ur_moveit_config/config/kinematics.yaml',
+            # Force OMPL and Request Adapters
+            {'planning_pipelines': ['ompl'],
+             'default_planning_pipeline': 'ompl',
+             'ompl.planning_plugin': 'ompl_interface/OMPLPlanner',
+             'ompl.request_adapters': 'default_planner_request_adapters/AddTimeOptimalParameterization '
+                                      'default_planner_request_adapters/FixWorkspaceBounds '
+                                      'default_planner_request_adapters/FixStartStateBounds '
+                                      'default_planner_request_adapters/FixStartStateCollision '
+                                      'default_planner_request_adapters/FixStartStatePathConstraints',
+             'trajectory_execution.allowed_start_tolerance': 0.1,
+             'use_sim_time': False}
+        ],
+    )
+
+    # 4. Define the RViz Node
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        arguments=['-d', '/ros2_ws/install/ur_moveit_config/share/ur_moveit_config/rviz/view_robot.rviz'],
+        parameters=[
+            {'robot_description': robot_description},
+            {'robot_description_semantic': robot_description_semantic},
+            '/ros2_ws/install/ur_moveit_config/share/ur_moveit_config/config/kinematics.yaml'
+        ],
+    )
+
+    return LaunchDescription([move_group_node, rviz_node])

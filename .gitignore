@@ -1,0 +1,23 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Colcon
+.colcon/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VS Code
+.vSCode/
+*.code-workspace
+
+# Windows junk
+Thumbs.db
+Desktop.ini
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
