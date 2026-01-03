@@ -1,28 +1,47 @@
 import os
+import yaml
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import xacro
+from launch.actions import TimerAction
+
+def load_yaml(package_name, file_path):
+    package_path = get_package_share_directory(package_name)
+    absolute_path = os.path.join(package_path, file_path)
+    try:
+        with open(absolute_path, 'r') as file:
+            return yaml.safe_load(file)
+    except EnvironmentError: 
+        return None
 
 def generate_launch_description():
     description_pkg = "my_ur_description"
     
-    # 1. Load URDF
+    # 1. URDF
     xacro_file = os.path.join(get_package_share_directory(description_pkg), 'urdf', 'ur_system.xacro')
     robot_description_config = xacro.process_file(xacro_file, mappings={'use_fake_hardware': 'true'})
     robot_description = {'robot_description': robot_description_config.toxml()}
 
-    # 2. Load SRDF
+    # 2. SRDF
     srdf_file = os.path.join(get_package_share_directory(description_pkg), 'srdf', 'ur_system.srdf')
     with open(srdf_file, 'r') as f:
         semantic_config = f.read()
     robot_description_semantic = {'robot_description_semantic': semantic_config}
 
-    # 3. Load Paths
-    kinematics_yaml = os.path.join(get_package_share_directory(description_pkg), 'config', 'kinematics.yaml')
+    # 3. Kinematics
+    kinematics_yaml = load_yaml(description_pkg, 'config/kinematics.yaml')
+    kinematics_parameters = {'robot_description_kinematics': kinematics_yaml}
+    rviz_kinematics_config = {'robot_description_kinematics': kinematics_yaml}
+    
     controllers_yaml = os.path.join(get_package_share_directory(description_pkg), 'config', 'ur_controllers.yaml')
 
-    # 4. MoveIt Controller Config
+    # 4. RViz Configuration File Path
+    rviz_config_file = os.path.join(
+        get_package_share_directory(description_pkg), 'rviz', 'my_robot_view.rviz'
+    )
+
+    # 5. MoveIt Controller Config
     moveit_controllers = {
         'moveit_simple_controller_manager': {
             'controller_names': ['joint_trajectory_controller', 'robotiq_gripper_controller'],
@@ -41,7 +60,7 @@ def generate_launch_description():
         }
     }
 
-    # 5. Planning Pipeline Config (FIXED: adapters changed from list to space-separated string)
+    # 6. Planning Pipeline - UPDATED for better precision in tight spaces
     planning_pipeline_config = {
         'default_planning_pipeline': 'ompl',
         'planning_pipelines': ['ompl'],
@@ -53,13 +72,34 @@ def generate_launch_description():
                                 'default_planner_request_adapters/FixStartStateCollision ' \
                                 'default_planner_request_adapters/FixStartStatePathConstraints',
             'start_state_max_bounds_error': 0.1,
+            'longest_valid_segment_fraction': 0.005, # Higher precision (default is 0.01)
         }
     }
 
-    return LaunchDescription([
-        Node(package='robot_state_publisher', executable='robot_state_publisher', output='both', parameters=[robot_description]),
+    # Define RViz node
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='screen',
+        arguments=['-d', rviz_config_file],
+        parameters=[
+            robot_description, 
+            robot_description_semantic, 
+            kinematics_yaml,
+            rviz_kinematics_config,
+            planning_pipeline_config
+        ],
+    )
 
-        # ros2_control_node: Explicitly load the controllers yaml here
+    return LaunchDescription([
+        Node(
+            package='robot_state_publisher', 
+            executable='robot_state_publisher', 
+            output='both', 
+            parameters=[robot_description, {'use_sim_time': False}]
+        ),
+        
         Node(
             package='controller_manager',
             executable='ros2_control_node',
@@ -74,22 +114,27 @@ def generate_launch_description():
             parameters=[
                 robot_description,
                 robot_description_semantic,
-                kinematics_yaml,
+                kinematics_parameters,
                 planning_pipeline_config,
                 moveit_controllers,
-                {'use_sim_time': False, 'publish_planning_scene': True}
+                {
+                    'use_sim_time': False, 
+                    'publish_planning_scene': True,
+                    'publish_geometry_updates': True,
+                    'publish_state_updates': True,
+                    'publish_transforms_updates': True,
+                    # Planning options for difficult environments
+                    'planning_time': 10.0,       # Allow more time to find a path
+                    'planning_attempts': 10,     # Try more seeds
+                    'max_velocity_scaling_factor': 0.5,
+                    'max_acceleration_scaling_factor': 0.5,
+                }
             ],
         ),
 
-        # Spawners
         Node(package='controller_manager', executable='spawner', arguments=['joint_state_broadcaster']),
         Node(package='controller_manager', executable='spawner', arguments=['joint_trajectory_controller']),
         Node(package='controller_manager', executable='spawner', arguments=['robotiq_gripper_controller']),
 
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            parameters=[robot_description, robot_description_semantic, kinematics_yaml],
-        )
+        TimerAction(period=5.0, actions=[rviz_node])
     ])
