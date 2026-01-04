@@ -291,7 +291,13 @@ By using the install(DIRECTORY ...) command in CMake, you make your package "por
 
 ***
 
-Here is the concise, step-by-step procedure to launch your full UR12e + Robotiq + Camera system using Fake Hardware (Mock Components). This allows you to plan and visualize in RViz without needing the real robot or URSim.1. Start & Enter the ROS 2 ContainerOn your Ubuntu 24.04 host, open a terminal. First, ensure the container can access your screen, then start it.Bash# Allow Docker to open GUI windows (RViz)
+Here is the concise, step-by-step procedure to launch your full UR12e + Robotiq + Camera system using Fake Hardware (Mock Components). This allows you to plan and visualize in RViz without needing the real robot or URSim.
+
+1. Start & Enter the ROS 2 Container
+On your Ubuntu 24.04 host, open a terminal. First, ensure the container can access your screen, then start it.
+
+Bash
+# Allow Docker to open GUI windows (RViz)
 xhost +local:docker
 
 # Start your Humble container (assuming your workspace is at ~/ros2_ws)
@@ -303,7 +309,12 @@ docker run -it \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v ~/ros2_ws:/ros2_ws \
   ur12e_dev_env
-2. Build and Source (Inside the Container)Once inside the container's bash prompt, you must "register" your package so ROS can see your launch files.Bash# Move to the workspace root
+
+2. Build and Source (Inside the Container)
+Once inside the container's bash prompt, you must "register" your package so ROS can see your launch files.
+
+Bash
+# Move to the workspace root
 cd /ros2_ws
 
 # Build only your description package to save time
@@ -314,8 +325,23 @@ source /opt/ros/humble/setup.bash
 
 # Source your local workspace
 source install/setup.bash
-3. Launch the SystemNow, execute the launch file. We pass the use_fake_hardware argument which tells the robot driver to skip the network check for a real IP and instead use the mock_components plugin.Bashros2 launch my_ur_description my_robot.launch.py \
+
+3. Launch the System
+Now, execute the launch file. We pass the use_fake_hardware argument which tells the robot driver to skip the network check for a real IP and instead use the mock_components plugin.
+
+Bash
+  ros2 launch my_ur_description my_robot.launch.py \
   use_fake_hardware:=true \
   robot_ip:=123.123.123.123 \
   ur_type:=ur12e
-Note: Even with fake hardware, the UR driver requires a dummy robot_ip string to satisfy its internal checks.4. Interactive Checklist in RVizWhen RViz opens, if you cannot move the robot, perform these three quick actions:Add the MotionPlanning Plugin: If the panel isn't visible, click Add -> MotionPlanning.Unlock the Joints: Go to the Planning tab. Change Goal State from <current> to <random>.Visual Check: * Ensure your D435 mesh is visible on the desk.Check that the Robotiq 2F-85 is attached to the tool0 frame.Why this worksBy setting use_fake_hardware:=true, ROS 2 starts a Mock Hardware Interface. This interface creates an "echo" for joint commands: whenever MoveIt sends a command to move a joint to $90^\circ$, the mock hardware immediately reports back that the joint is now at $90^\circ$. This creates the smooth "ghost" movement you see in the simulator.
+
+Note: Even with fake hardware, the UR driver requires a dummy robot_ip string to satisfy its internal checks.
+
+4. Interactive Checklist in RViz
+When RViz opens, if you cannot move the robot, perform these three quick actions:
+    Add the MotionPlanning Plugin: If the panel isn't visible, click Add -> MotionPlanning.
+    Unlock the Joints: Go to the Planning tab. Change Goal State from <current> to <random>.
+    Visual Check: * Ensure your D435 mesh is visible on the desk.Check that the Robotiq 2F-85 is attached to the tool0 frame.
+
+Why this works
+By setting use_fake_hardware:=true, ROS 2 starts a Mock Hardware Interface. This interface creates an "echo" for joint commands: whenever MoveIt sends a command to move a joint to $90^\circ$, the mock hardware immediately reports back that the joint is now at $90^\circ$. This creates the smooth "ghost" movement you see in the simulator.
