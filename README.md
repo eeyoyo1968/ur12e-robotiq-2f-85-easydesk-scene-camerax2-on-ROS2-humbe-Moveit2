@@ -52,11 +52,12 @@ docker run -it \
 3. File Architecture & Configuration
 
 Inside your /ros2_ws/src/my_ur_description package, your files should be organized as follows:
-File Type       Path / Role                 Key Purpose
-URDF/Xacro      urdf/ur_system.xacro        Combines UR12e, Gripper, Easydesk, and .dae camera meshes.
-SRDF            srdf/ur_system.srdf         Defines "Home" poses and disables self-collisions with walls/desk.
-YAML            config/ompl_planning.yaml   Sets planning time (10s) and precision for tight cage navigation.
-Launch          launch/my_robot.launch.py   Starts robot_state_publisher, move_group, and RViz.
+|File Type       |Path / Role                 |Key Purpose|
+|----------------|----------------------------|-----------|
+|URDF/Xacro      |urdf/ur_system.xacro        |Combines UR12e, Gripper, Easydesk, and .dae camera meshes.|
+|SRDF            |srdf/ur_system.srdf         |Defines "Home" poses and disables self-collisions with walls/desk.|
+|YAML            |config/ompl_planning.yaml   |Sets planning time (10s) and precision for tight cage navigation.|
+|Launch          |launch/my_robot.launch.py   |Starts robot_state_publisher, move_group, and RViz.|
 
 4. Running the "Fake Hardware" Stack
 Once inside the container, you use the Mock Components plugin. This allows MoveIt to think it's talking to a real robot without needing URSim or physical hardware.
@@ -75,9 +76,9 @@ Once inside the container, you use the Mock Components plugin. This allows MoveI
 
 5. Final Checklist for RViz
 When RViz opens, perform these three checks to ensure your system is "intelligent":
-    Goal State: Ensure it's set to <random> or home so you can move the joint sliders.
-    Collision View: In the RobotModel display, toggle "Collision" to see if your camera hit-boxes align with the visual meshes.
-    Planning: Try planning a move from "Home" to "Pick Approach." If it fails, check your OMPL parameters in the launch file.
+    -Goal State: Ensure it's set to <random> or home so you can move the joint sliders.
+    -Collision View: In the RobotModel display, toggle "Collision" to see if your camera hit-boxes align with the visual meshes.
+    -Planning: Try planning a move from "Home" to "Pick Approach." If it fails, check your OMPL parameters in the launch file.
 
 ***
 
@@ -115,26 +116,26 @@ my_ur_description/
 
 3. File Functions & Logic
 Physical & Logical Description
-    ur_system.xacro: The Master Assembly. It uses <xacro:include> to pull in the UR12e, the Robotiq 2F-85, and your D435 camera macros. It defines how the Easydesk connects to the world and where the robot sits on the desk.
+    -ur_system.xacro: The Master Assembly. It uses <xacro:include> to pull in the UR12e, the Robotiq 2F-85, and your D435 camera macros. It defines how the Easydesk connects to the world and where the robot sits on the desk.
 
-    ur_system.srdf: The Semantic file. It doesn't define shapes, but rather meanings. It defines named poses (e.g., "Home") and, critically, a Collision Matrix that tells MoveIt to ignore collisions between the robot's base and the Easydesk.
+    -ur_system.srdf: The Semantic file. It doesn't define shapes, but rather meanings. It defines named poses (e.g., "Home") and, critically, a Collision Matrix that tells MoveIt to ignore collisions between the robot's base and the Easydesk.
 
 Configuration (YAMLs)
-    kinematics.yaml: Defines which numerical solver MoveIt should use (usually kdl_kinematics_plugin) to calculate how the joints move to reach a 3D coordinate.
+    -kinematics.yaml: Defines which numerical solver MoveIt should use (usually kdl_kinematics_plugin) to calculate how the joints move to reach a 3D coordinate.
 
-    ros2_controllers.yaml: Configures the Controller Manager. It defines the types of controllers (e.g., JointTrajectoryController) and the sampling rate for the "fake" hardware.
+    -ros2_controllers.yaml: Configures the Controller Manager. It defines the types of controllers (e.g., JointTrajectoryController) and the sampling rate for the "fake" hardware.
 
-    ur_controllers.yaml: Specific parameters for the UR12e, such as joint constraints and tolerances for the trajectory follower.
+    -ur_controllers.yaml: Specific parameters for the UR12e, such as joint constraints and tolerances for the trajectory follower.
 
 Deployment & Visualization
-    my_robot.launch.py: A Python script that orchestrates everything. It starts the robot_state_publisher (which processes the Xacro), the move_group node (the "brain"), and RViz. It handles logic like use_fake_hardware := true.
+    -my_robot.launch.py: A Python script that orchestrates everything. It starts the robot_state_publisher (which processes the Xacro), the move_group node (the "brain"), and RViz. It handles logic like use_fake_hardware := true.
 
-    my_robot_view.rviz: A saved configuration of the RViz GUI. It ensures that when you open the program, the "Motion Planning" panel is already open, the background is the right color, and the cameras are visible.
+    -my_robot_view.rviz: A saved configuration of the RViz GUI. It ensures that when you open the program, the "Motion Planning" panel is already open, the background is the right color, and the cameras are visible.
 
 Package Plumbing
-    CMakeLists.txt: Tells colcon how to install the folders (config, launch, urdf, etc.) into the install/ directory so they can be found at runtime.
+    -CMakeLists.txt: Tells colcon how to install the folders (config, launch, urdf, etc.) into the install/ directory so they can be found at runtime.
 
-    package.xml: Lists the other ROS 2 packages your project needs (like ur_robot_driver).
+    -package.xml: Lists the other ROS 2 packages your project needs (like ur_robot_driver).
 
 4. Build and Source Instructions
 Every time you modify the Xacro or YAML files, you must rebuild to update the install folder:
@@ -161,14 +162,15 @@ cd my_ur_description
 mkdir urdf srdf launch config rviz
 
 2. File Functions & Logic
-File                    Purpose                 Logic
-ur_system.xacro         The Physical Model      Combines the UR12e robot, Robotiq gripper, and D435 cameras into one 3D assembly using math and macros.
-ur_system.srdf          The Semantic Model      Defines "Groups" (e.g., ur_arm), "Poses" (e.g., home), and "Virtual Joints." Crucially, it lists which parts can touch without triggering an alarm (Self-Collision).
-my_robot.launch.py      The Orchestrator        A Python script that starts the nodes. It tells MoveIt where the URDF is and launches RViz with your specific saved view.
-ros2_controllers.yaml   The Hardware Logic      Maps MoveIt's abstract commands to specific software "drivers" like the JointTrajectoryController.
-kinematics.yaml         The Math Solver         Configures the Inverse Kinematics (IK) plugin (e.g., KDL or PickNik's BioIK) so the arm knows how to calculate joint angles for a target 3D point. 
-package.xml             The Dependency List     Lists every ROS package your robot needs (e.g., moveit_ros_planning, xacro, ur_description).
-CMakeLists.txt          The Installer           This is the "glue." It tells the compiler which folders (launch, config, urdf) must be copied to the install/ folder so ROS can find them at runtime.
+|File                    |Purpose                 |Logic|
+|------------------------|------------------------|-----------------------------|
+|ur_system.xacro         |The Physical Model      |Combines the UR12e robot, Robotiq gripper, and D435 cameras into one 3D assembly using math and macros.|
+|ur_system.srdf          |The Semantic Model      |Defines "Groups" (e.g., ur_arm), "Poses" (e.g., home), and "Virtual Joints." Crucially, it lists which parts can touch without triggering an alarm (Self-Collision).|
+|my_robot.launch.py      |The Orchestrator        |A Python script that starts the nodes. It tells MoveIt where the URDF is and launches RViz with your specific saved view.|
+|ros2_controllers.yaml   |The Hardware Logic      |Maps MoveIt's abstract commands to specific software "drivers" like the JointTrajectoryController.|
+|kinematics.yaml         |The Math Solver         |Configures the Inverse Kinematics (IK) plugin (e.g., KDL or PickNik's BioIK) so the arm knows how to calculate joint angles for a target 3D point.| 
+|package.xml             |The Dependency List     |Lists every ROS package your robot needs (e.g., moveit_ros_planning, xacro, ur_description).|
+|CMakeLists.txt          |The Installer           |This is the "glue." It tells the compiler which folders (launch, config, urdf) must be copied to the install/ folder so ROS can find them at runtime.|
 
 3. The "Secret Sauce": CMakeLists.txt
 Since you are working with Xacro and Moveit, your CMakeLists.txt must explicitly "install" your asset folders. Without this, ros2 launch will error out with "file not found."
@@ -270,13 +272,13 @@ gripper_controller:
 
 
 3. Summary of Package Setup Instructions
-    Create Package: Inside your Docker container, run ros2 pkg create --build-type ament_cmake my_ur_description.
+    -Create Package: Inside your Docker container, run ros2 pkg create --build-type ament_cmake my_ur_description.
 
-    Organize Files: Move your ur_system.xacro to /urdf, your .srdf to /srdf, and your .yaml files to /config.
+    -Organize Files: Move your ur_system.xacro to /urdf, your .srdf to /srdf, and your .yaml files to /config.
 
-    Update package.xml: Ensure you have <exec_depend> tags for ur_description, joint_state_publisher_gui, and moveit_ros_move_group.
+    -Update package.xml: Ensure you have <exec_depend> tags for ur_description, joint_state_publisher_gui, and moveit_ros_move_group.
 
-    Build:
+    -Build:
 
 Bash
 
