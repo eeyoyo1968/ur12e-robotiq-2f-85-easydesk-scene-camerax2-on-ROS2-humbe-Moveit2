@@ -1,0 +1,37 @@
+# UR12e + Robotiq 2F-85 Lab Simulation (ROS 2 Humble)
+
+This repository contains the software stack for controlling and simulating a **Universal Robots UR12e** equipped with a **Robotiq 2F-85 gripper**, mounted on an **Easydesk** workbench with **dual Intel RealSense D435** scene cameras.
+
+## 🛠 Prerequisites
+* **Host OS:** Ubuntu 24.04 (Noble Numbat)
+* **Docker:** Installed and configured with X11 forwarding permissions.
+* **Hardware Simulation:** Supports `mock_components` (Fake Hardware) or **URSim** (Hardware-in-the-Loop).
+
+---
+
+## 🚀 1. Setup Environment (Docker)
+
+Since ROS 2 Humble is native to Ubuntu 22.04, we use a Docker container to ensure a stable build environment on your Ubuntu 24.04 host.
+
+### Host Preparation
+```bash
+# Allow Docker to access your X11 display for RViz
+xhost +local:docker
+Build the ImageCreate a Dockerfile with the ros-humble-desktop base and essential UR/MoveIt dependencies.Bashdocker build -t ur12e_dev_env .
+Run the ContainerBashdocker run -it --name ur_dev_container --net=host --privileged \
+  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v ~/ros2_ws:/ros2_ws ur12e_dev_env
+📁 2. Package Structure: my_ur_descriptionThe package follows the standard ROS 2/MoveIt 2 hierarchy.FolderKey FilesFunctionurdf/ur_system.xacroThe Master Assembly (Robot + Gripper + Desk + Cameras).srdf/ur_system.srdfNamed poses (Home) and collision disabling matrix.config/ros2_controllers.yamlHardware interface mapping for the controller manager.launch/my_robot.launch.pyOrchestrates MoveIt, Robot State Publisher, and RViz.🏗 3. Build & Operation (Fake Hardware)Build the WorkspaceInside the container, compile the package to ensure the install/ directory is updated:Bashcd /ros2_ws
+colcon build --symlink-install --packages-select my_ur_description
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+Launch SimulationRun the simulation using mock_components.Bashros2 launch my_ur_description my_robot.launch.py \
+  use_fake_hardware:=true \
+  robot_ip:=1.1.1.1 \
+  ur_type:=ur12e
+🔗 4. Transitioning to URSim (Hardware-in-the-Loop)To move beyond "Fake" hardware and use the URSim controller with URCaps, you must bridge the network between the two containers.A. Run URSim ContainerBashdocker run --rm -it -p 5900:5900 -p 6080:6080 --name ursim universalrobots/ursim_e-series
+B. Configure External Control URCapOpen URSim in browser (localhost:6080).Go to Installation > External Control.Set Host IP to your host's docker bridge IP (usually 172.17.0.1).Set Custom Port to 50002.C. Launch ROS 2 with URSim ConnectionIn your ROS 2 terminal, switch use_fake_hardware to false and point to the URSim IP:Bashros2 launch my_ur_description my_robot.launch.py \
+  use_fake_hardware:=false \
+  robot_ip:=172.17.0.2 \
+  ur_type:=ur12e
+🎮 5. RViz Operation ChecklistGoal State: In the Planning tab, change Goal State from <current> to <random> to unlock interactive markers.Collision View: In the RobotModel display, toggle Collision to verify that D435 hit-boxes do not overlap with the desk incorrectly.Plan & Execute: Move the end-effector and click Plan and Execute.📝 Configuration NotesCMakeLists.txt: Ensure install(DIRECTORY ...) is present for all assets.ur_system.srdf: Essential for disabling collisions between base_link and easydesk.
