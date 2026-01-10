@@ -18,9 +18,13 @@ def load_yaml(package_name, file_path):
 def generate_launch_description():
     description_pkg = "my_ur_description"
     
+    # 1. URDF - MODIFIED TO INCLUDE BOTH MAPPINGS
+    # 1. URDF
     # 1. URDF
     xacro_file = os.path.join(get_package_share_directory(description_pkg), 'urdf', 'ur_system.xacro')
-    robot_description_config = xacro.process_file(xacro_file, mappings={'use_fake_hardware': 'true'})
+    
+    # Remove the 'mappings' dictionary entirely
+    robot_description_config = xacro.process_file(xacro_file)
     robot_description = {'robot_description': robot_description_config.toxml()}
 
     # 2. SRDF
@@ -60,7 +64,7 @@ def generate_launch_description():
         }
     }
 
-    # 6. Planning Pipeline - UPDATED for better precision in tight spaces
+    # 6. Planning Pipeline
     planning_pipeline_config = {
         'default_planning_pipeline': 'ompl',
         'planning_pipelines': ['ompl'],
@@ -72,7 +76,7 @@ def generate_launch_description():
                                 'default_planner_request_adapters/FixStartStateCollision ' \
                                 'default_planner_request_adapters/FixStartStatePathConstraints',
             'start_state_max_bounds_error': 0.1,
-            'longest_valid_segment_fraction': 0.005, # Higher precision (default is 0.01)
+            'longest_valid_segment_fraction': 0.005,
         }
     }
 
@@ -103,7 +107,12 @@ def generate_launch_description():
         Node(
             package='controller_manager',
             executable='ros2_control_node',
-            parameters=[robot_description, controllers_yaml],
+            parameters=[
+                {'robot_description': robot_description_config.toxml(), 
+                 'use_sim_time': False,
+                 'update_rate': 100},
+                controllers_yaml
+            ],
             output='both',
         ),
 
@@ -118,16 +127,16 @@ def generate_launch_description():
                 planning_pipeline_config,
                 moveit_controllers,
                 {
-                    'use_sim_time': False, 
+                    'use_sim_time': False,
+                    'monitor_dynamics': False,
                     'publish_planning_scene': True,
-                    'publish_geometry_updates': True,
-                    'publish_state_updates': True,
-                    'publish_transforms_updates': True,
-                    # Planning options for difficult environments
-                    'planning_time': 10.0,       # Allow more time to find a path
-                    'planning_attempts': 10,     # Try more seeds
-                    'max_velocity_scaling_factor': 0.5,
-                    'max_acceleration_scaling_factor': 0.5,
+                    'joint_state_monitor.max_joint_state_age': 0.0, 
+                    'wait_for_initial_state_timeout': 20.0,
+                    'trajectory_execution.check_starting_state': False,
+                    'trajectory_execution.allowed_start_tolerance': 0.0,
+                    'trajectory_execution.execution_duration_monitoring': False,
+                    'planning_time': 10.0,
+                    'planning_attempts': 10,
                 }
             ],
         ),
